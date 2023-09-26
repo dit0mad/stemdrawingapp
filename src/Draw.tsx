@@ -1,7 +1,9 @@
 
 
-import { useRef, useState, } from "react";
+import { useRef, useState } from "react";
 
+import { v4 as uuidv4 } from 'uuid';
+import { KonvaStage } from "./Konva_Stage";
 import { Slider } from "./slider";
 
 
@@ -10,18 +12,21 @@ import { Slider } from "./slider";
 
 
 
-import { DrawingContext } from "./types/Drawing_Context";
 
 
 
 
+import "./Draw.css";
 
-import "./Draw.css"
+import { Brush, Eraser } from "./Tools";
 
-import { Brush, Eraser } from "./Tools"
+import { CircleShape, Rectangle, Triangle } from "./Shapes";
 
-import { Triangle, Circle, Rectangle } from "./Shapes";
-import { useDraw } from "./hooks/useDraw";
+
+import { Shape } from "./Shapes";
+import { useController } from "./hooks/useDraw";
+
+
 
 
 
@@ -37,78 +42,148 @@ export function Draw() {
 
   const colorPicker = useRef<HTMLInputElement | null>(null);
 
-  const [selectedTool, setSelectedTool] = useState<string>("brush");
+  const [selectedTool, setSelectedTool] = useState<string>("pen");
 
-  const handleToolClick = (tool: string) => {
 
-    setSelectedTool(tool);
-    console.log(tool)
+
+
+
+
+
+
+  const [shapes, setShapes] = useState<Shape[]>([]);
+
+
+
+
+  const {
+    stageRef,
+    onDelete,
+    setLines,
+    setTool,
+    handleMouseUp,
+    handleMouseDown,
+    lines,
+    handleMouseMove,
+     selectedId,
+     selectShape,
+     shapeList,
+     setShapeList, } = useController(shapes, pickedColor,);
+
+
+  const clearStage = () => {
+    // Clear the shapes and lines from state
+    //call function from konva
+    setShapes([]);
+    setLines([]);
 
   };
 
-  //onmouse down is sent from useDraw, we pass in the startDrawing func to start drwaing
-
-  const { canvasRef, onMouseDown, } = useDraw(startDrawing);
-
-
-  const setCanvasBackground = (ctx: CanvasRenderingContext2D, canvasRef: React.RefObject<HTMLCanvasElement>) => {
-    // setting whole canvas background to white, so the downloaded img background will be white
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-    ctx.fillStyle = selectedColor; // setting fillstyle back to the selectedColor, it'll be the brush color
-  }
+  const handleExport = () => {
+    const uri = stageRef.current!.toDataURL();
+    console.log(uri);
+   
+  };
 
 
 
-  function startDrawing({ ctx, currentPoint, prevPoint }: DrawingContext) {
+  const handleToolClick = (tool: string) => {
 
-    const { x: currX, y: currY } = currentPoint
-    const lineColor = pickedColor
-    const lineWidth = pickedLineWidth
-    let startPoint = prevPoint ?? currentPoint
+    setTool(tool)
+    setSelectedTool(tool);
 
 
-    if (selectedTool === 'circle') {
-      ctx.beginPath(); // creating new path to draw circle
-      // getting radius for circle according to the mouse pointer
-      ctx.strokeStyle = lineColor
-      let radius = Math.sqrt(Math.pow((startPoint.x - currX), 2) + Math.pow((startPoint.y - currY), 2));
-      ctx.arc(startPoint.x, startPoint.y, radius, 0, 2 * Math.PI); // creating circle according to the mouse pointer
-      ctx.stroke()
+
+
+    if (tool === "rectangle") {
+
+      const shap: Shape = {
+        id: uuidv4(),
+        type: "rectangle",
+        x: 20,
+        y: 20,
+        width: 50,
+        height: 50,
+        fill: pickedColor,
+        shadowBlur: 5,
+
+
+
+
+      }
+
+
+
+      setShapes([...shapes, shap]);
+
 
 
     }
 
-    else if (selectedTool === 'rectangle') {
-      ctx.strokeStyle = lineColor
+    else if (tool === "triangle") {
 
-      ctx.strokeRect(currY, currX, startPoint.x - currX, startPoint.y - currY);
+
+
+
+      const shape: Shape = {
+        id: uuidv4(),
+        type: "triangle",
+        fill: pickedColor,
+        shadowBlur: 5,
+
+
+
+        x: 50,
+        y: 50,
+
+
+        stroke: "black", // Stroke color
+        strokeWidth: 2, // Stroke width
+
+
+      }
+
+
+
+      setShapes([...shapes, shape]);
 
     }
 
-    else {
+    else if (tool === 'circle') {
+
+
+
+      const shape: Shape = {
+        id: uuidv4(),
+        type: "circle",
+        fill: pickedColor,
+        shadowBlur: 5,
+
+
+
+        x: 50,
+        y: 50,
+
+
+        stroke: "black", // Stroke color
+        strokeWidth: 2, // Stroke width
+
+
+
+        radius: 50
 
 
 
 
-      ctx.beginPath()
-      ctx.lineWidth = lineWidth
+      }
 
-      ctx.moveTo(startPoint.x, startPoint.y)
-      ctx.lineTo(currX, currY)
-      ctx.stroke()
-      ctx.strokeStyle = selectedTool === "eraser" ? "#fff" : lineColor;
+      setShapes([...shapes, shape]);
 
-      ctx.fillStyle = lineColor
-      ctx.beginPath()
 
-      ctx.fill()
     }
-  }
 
 
-
-
+  };
 
 
   const handleSliderChange = (event: any) => {
@@ -159,10 +234,9 @@ export function Draw() {
 
 
 
-
   return (
 
-
+    //when i click triangle it should add traingle to layer of konva.
 
     <div className="container">
       <section className="tools-board">
@@ -175,8 +249,11 @@ export function Draw() {
 
 
             <Triangle callback={() => handleToolClick('triangle')} selected={selectedTool} />
-            <Circle callback={() => handleToolClick('circle')} selected={selectedTool} />
+
             <Rectangle callback={() => handleToolClick('rectangle')} selected={selectedTool} />
+            <CircleShape callback={() => handleToolClick('circle')} selected={selectedTool} />
+
+            <></>
 
             <p className="flex">Selected Tool: {selectedTool}</p>
 
@@ -188,7 +265,7 @@ export function Draw() {
         <div className="row">
           <label className="title">Options</label>
           <ul ref={toolBtns} className="options">
-            <Brush callback={() => handleToolClick('brush')} selected={selectedTool} />
+            <Brush callback={() => handleToolClick('pen')} selected={selectedTool} />
             <Eraser callback={() => handleToolClick('eraser')} selected={selectedTool} />
             <li className="option">
               <Slider max="30" min="1" value={pickedLineWidth} onChange={handleSliderChange} ></Slider>
@@ -199,23 +276,36 @@ export function Draw() {
         <div className="row colors">
           <label className="title">Colors</label>
           <ul className="options">
-            <li className="option"></li>
-            <li className="option selected"></li>
-            <li className="option"></li>
-            <li className="option"></li>
+
             <li className="option">
               <input ref={colorPicker} type="color" value={pickedColor} onChange={changeColorPicker} />
             </li>
           </ul>
         </div>
         <div className="row buttons">
-          <button ref={clearCanvas} className="clear-canvas">Clear Canvas</button>
-          <button ref={saveImg} className="submission">Send Submission</button>
+          <button ref={clearCanvas} onClick={clearStage} className="clear-canvas">Clear Canvas</button>
+          <button ref={saveImg} onClick={handleExport} className="submission">Send Submission</button>
         </div>
       </section>
       <section className="drawing-board">
-        <canvas ref={canvasRef} width={750}
-          height={750} onMouseDown={onMouseDown}  ></canvas>
+        <KonvaStage
+        stageRef={stageRef}
+          shapes={shapes}
+          selectedColor={pickedColor}
+          clearLines={clearStage}
+          handleMouseDown={handleMouseDown}
+          handleMouseMove={handleMouseMove}
+          handleMouseUp={handleMouseUp}
+          lines={lines}
+          selectShape={selectShape}
+          selectedId={selectedId}
+          setShapeList={setShapeList}
+          shapeList={shapeList}
+          strokeWidth={pickedLineWidth}
+          onDelete={onDelete}
+
+
+        />
       </section>
     </div>
   );

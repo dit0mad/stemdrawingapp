@@ -1,96 +1,93 @@
 import { useEffect, useRef, useState } from "react"
-import { DrawingContext, Point } from "../types/Drawing_Context";
 
-
-export const useDraw = (    startDrawing: ({ ctx, currentPoint, prevPoint } : DrawingContext  ) => void) => {
-
-
-    //create ref and pass to hoomepage
-
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [mouseDown, setMousedown] = useState(false);
-
-    const prevPointRef = useRef<null | Point>(null);
-
-    const onMouseDown = () => setMousedown(true);
+import { KonvaEventObject } from "konva/lib/Node";
+import { Shape } from "../Shapes";
+import { KonvaNodeComponent, StageProps } from "react-konva/ReactKonvaCore";
+import { Stage } from "konva/lib/Stage";
 
 
 
+export const useController = (shapes : Shape[], fillColor : string, ) => {
 
+
+  const [shapeList, setShapeList] = useState<Shape[]>(shapes);
+  const [selectedId, selectShape] = useState<string | null>(null);
+  const [tool, setTool] = useState<string>('pen');
+  const [lines, setLines] = useState<{ tool: string; points: number[] }[]>([]);
+
+  const stageRef = useRef<any>(null);
+
+  const isDrawing = useRef(false);
+
+
+
+  useEffect(() => {
+
+  }, [shapeList])
+
+
+  const handleMouseDown = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
+
+      //if a shape is selected that means we are not drawing.
+      if(selectedId !== null){
+
+        checkDeselect(e);
+        return;
+      }
+
+
+
+    isDrawing.current = true;
+    const pos = e.target.getStage()!.getPointerPosition();
+    setLines([...lines, { tool, points: [pos!.x, pos!.y] }]);
+  };
+
+  const handleMouseMove = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    // no drawing - skipping
+    if (!isDrawing.current) {
+      return;
+    }
+    const stage = e.target.getStage()!;
+    const point = stage.getPointerPosition();
+    let lastLine = lines[lines.length - 1];
+    // add point
+    lastLine.points = lastLine.points.concat([point!.x, point!.y]);
+
+    // replace last
+    lines.splice(lines.length - 1, 1, lastLine);
+    setLines(lines.concat());
+  };
+
+  const handleMouseUp = () => {
+    isDrawing.current = false;
+  };
+
+
+
+  const checkDeselect = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const clickedOnEmpty = e.target === e.target.getStage();
+    if (clickedOnEmpty) {
+      selectShape(null);
+    }
+  };
+
+  const onDelete = (shapeProps: Shape) => {
+    // Here, you can remove the shape from your state or perform any other desired action
+    // For example, if you are using a state array to store shapes, you can filter out the shape to delete it:
+
+    console.log(shapeProps.id)
+   
 
 
     
-    const setCanvasBackground = (ctx : CanvasRenderingContext2D, canvasRef: React.RefObject<HTMLCanvasElement>) => {
-        // setting whole canvas background to white, so the downloaded img background will be white
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-        ctx.fillStyle = selectedColor; // setting fillstyle back to the selectedColor, it'll be the brush color
-    }
+    setShapeList(shapeList.filter((shape) => shape.id === shapeProps.id));
+  };
 
 
-
-    //  whenever useDraw is called useeffect will run
-
-    useEffect(() => {
-
-
-        const getRelativeSize = (e: MouseEvent) => {
-            const canvas = canvasRef.current!;
-
-
-
-
-
-            const offset = canvas.getBoundingClientRect();
-            const x = e.clientX - offset.left
-            const y = e.clientY - offset.top
-            return { x, y }
-
-        }
-
-        const handler = (e: MouseEvent) => {
-
-            if (!mouseDown) return
-
-            const currentPoint = getRelativeSize(e)!;
-
-            const ctx = canvasRef.current?.getContext('2d')!
-
-            if (!currentPoint || !ctx) return
-
-
-
-            startDrawing({ ctx, currentPoint, prevPoint: prevPointRef.current })
-
-            //after excuting currentpoint is the prevpoint for the next point
-
-            prevPointRef.current = currentPoint;
-
-
-            //get initial mouse codinates
-
-        }
-        const mouseUpHandler = () => {
-            setMousedown(false)
-            prevPointRef.current = null
-        }
-
-        //addeventlisteners
-
-        canvasRef.current?.addEventListener("mousemove", handler);
-        canvasRef.current?.addEventListener('mouseup', mouseUpHandler)
-
-       
-
-        return () => {   
-            canvasRef.current?.removeEventListener("mousemove", handler)
-            canvasRef.current?.removeEventListener('mouseup', mouseUpHandler)}
-
-
-    }, [mouseDown, startDrawing])
-
-    return { canvasRef, onMouseDown };
+  return {stageRef,onDelete,  handleMouseUp, handleMouseDown , lines, handleMouseMove, selectedId , selectShape, shapeList,  setShapeList, setLines, setTool};
 
 }
+
+
 
 

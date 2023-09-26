@@ -9,7 +9,7 @@ export function Brush({ selected,callback }: any) {
 
     return (
         <div>
-            <li className={`option tool ${selected === "brush" ? 'active' : ''}`} id="brush"  onClick={callback}>
+            <li className={`option tool ${selected === "pen" ? 'active' : ''}`} id="brush"  onClick={callback}>
                 <img src={brush} alt="" />
                 <span>Brush</span>
             </li>
